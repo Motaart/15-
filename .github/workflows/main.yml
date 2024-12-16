@@ -1,0 +1,300 @@
+
+htm
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced 15 Puzzle</title>
+    <style>
+        :root {
+            --tile-size: 80px;
+            --grid-gap: 6px;
+            --primary-color: #2196F3;
+            --secondary-color: #1976D2;
+            --background-color: #f5f5f5;
+            --tile-color: #fff;
+            --text-color: #333;
+            --success-color: #4CAF50;
+            --warning-color: #FFC107;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            font-family: 'Arial', sans-serif;
+            background: var(--background-color);
+            color: var(--text-color);
+        }
+
+        .title {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .game-wrapper {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .game-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, var(--tile-size));
+            grid-template-rows: repeat(4, var(--tile-size));
+            gap: var(--grid-gap);
+            background: #ddd;
+            padding: var(--grid-gap);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .tile {
+            width: var(--tile-size);
+            height: var(--tile-size);
+            border: none;
+            border-radius: 8px;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-color);
+            background: var(--tile-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .tile:not(.empty):hover {
+            transform: scale(1.05);
+            background: #f0f0f0;
+        }
+
+        .tile.empty {
+            background: transparent;
+            cursor: default;
+            box-shadow: none;
+        }
+
+        .tile.movable {
+            background: #e3f2fd;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+            font-size: 18px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .control-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary-color);
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        .timer {
+            font-size: 24px;
+            margin: 10px 0;
+            color: var(--primary-color);
+        }
+
+        /* Responsive design */
+        @media (max-width: 600px) {
+            :root {
+                --tile-size: 60px;
+            }
+            
+            .game-container {
+                padding: 10px;
+            }
+        }
+
+        /* Congrats message style */
+        .congrats-message {
+            display: none;
+            font-size: 24px;
+            color: var(--success-color);
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">mota art</div>
+    <div class="game-wrapper">
+        <div class="game-container">
+            <div class="timer" id="timer">00:00</div>
+            <div class="stats">
+                <div>Moves: <span id="moves">0</span></div>
+                <div>Best: <span id="best">-</span></div>
+            </div>
+            <div class="grid" id="grid"></div>
+            <div class="controls">
+                <button class="control-btn" onclick="newGame()">New Game</button>
+                <button class="control-btn" onclick="shuffleTiles()">Shuffle</button>
+            </div>
+            <div class="congrats-message" id="congratsMessage">Congratulations! You solved the puzzle!</div>
+        </div>
+    </div>
+
+    <script>
+        let tiles = [];
+        let moveCount = 0;
+        let timer = 0;
+        let timerInterval;
+        let bestScore = localStorage.getItem('bestScore') || Infinity;
+
+        function updateTimer() {
+            const minutes = Math.floor(timer / 60).toString().padStart(2, '0');
+            const seconds = (timer % 60).toString().padStart(2, '0');
+            document.getElementById('timer').textContent = `${minutes}:${seconds}`;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timer = 0;
+            updateTimer();
+            timerInterval = setInterval(() => {
+                timer++;
+                updateTimer();
+            }, 1000);
+        }
+
+        function createGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            const emptyIndex = tiles.indexOf(0);
+
+            tiles.forEach((tile, index) => {
+                const tileElement = document.createElement('div');
+                tileElement.className = 'tile' + (tile === 0 ? ' empty' : '');
+                
+                // Highlight movable tiles
+                if (isMovable(index, emptyIndex)) {
+                    tileElement.classList.add('movable');
+                }
+
+                tileElement.innerText = tile === 0 ? '' : tile;
+                tileElement.onclick = () => moveTile(index);
+                grid.appendChild(tileElement);
+            });
+
+            document.getElementById('moves').textContent = moveCount;
+            document.getElementById('best').textContent = bestScore === Infinity ? '-' : bestScore;
+        }
+
+        function isMovable(index, emptyIndex) {
+            const row = Math.floor(index / 4);
+            const emptyRow = Math.floor(emptyIndex / 4);
+            const col = index % 4;
+            const emptyCol = emptyIndex % 4;
+
+            return (Math.abs(row - emptyRow) === 1 && col === emptyCol) ||
+                   (Math.abs(col - emptyCol) === 1 && row === emptyRow);
+        }
+
+        function moveTile(index) {
+            const emptyIndex = tiles.indexOf(0);
+            
+            if (isMovable(index, emptyIndex)) {
+                tiles[emptyIndex] = tiles[index];
+                tiles[index] = 0;
+                moveCount++;
+                createGrid();
+
+                if (isWon()) {
+                    clearInterval(timerInterval);
+                    if (moveCount < bestScore) {
+                        bestScore = moveCount;
+                        localStorage.setItem('bestScore', bestScore);
+                    }
+                    setTimeout(() => {
+                        document.getElementById('congratsMessage').style.display = 'block'; // Show congrats message
+                        setTimeout(newGame, 3000); // Restart game after 3 seconds
+                    }, 100);
+                }
+            }
+        }
+
+        function shuffleTiles() {
+            tiles = Array.from({length: 15}, (_, i) => i + 1);
+            tiles[10] = 11; // Replace position of number 12 with 11
+            tiles.push(0);
+
+            do {
+                for (let i = tiles.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+                }
+            } while (!isSolvable());
+
+            moveCount = 0;
+            startTimer();
+            createGrid();
+        }
+
+        function isSolvable() {
+            let inversions = 0;
+            const tilesCopy = tiles.filter(t => t !== 0);
+            
+            for (let i = 0; i < tilesCopy.length - 1; i++) {
+                for (let j = i + 1; j < tilesCopy.length; j++) {
+                    if (tilesCopy[i] > tilesCopy[j]) inversions++;
+                }
+            }
+
+            const emptyRow = Math.floor(tiles.indexOf(0) / 4);
+            return (inversions + emptyRow) % 2 === 0;
+        }
+
+        function isWon() {
+            return tiles.slice(0, 15).every((tile, index) => tile === index + 1);
+        }
+
+        function newGame() {
+            document.getElementById('congratsMessage').style.display = 'none'; // Hide congrats message
+            shuffleTiles();
+        }
+
+        // Initialize the game
+        newGame();
+    </script>
+</body>
+</html>
+```
